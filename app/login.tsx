@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../utils/firebaseconfig";
 import { useTheme } from "../contexts/themeContext";
+import * as Haptics from "expo-haptics"; // Importa Haptics para la respuesta háptica
 
 // Función para transformar el error de Firebase en un mensaje amigable
 const getFriendlyError = (error: any): string => {
@@ -30,6 +31,9 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
+    // Habilita la respuesta háptica al presionar el botón
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
     setError(""); // Limpiar error previo
     if (!email.trim() || !password) {
       setError("Por favor completa todos los campos.");
@@ -52,7 +56,7 @@ export default function LoginScreen() {
       <TextInput
         style={[styles.input, { color: darkMode ? "#fff" : "#000", borderColor: darkMode ? "#fff" : "#000" }]}
         placeholder="Correo electrónico"
-        placeholderTextColor={darkMode ? "#ccc" : "#888"}
+        placeholderTextColor={darkMode ? "#fff" : "#888"}
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -61,7 +65,7 @@ export default function LoginScreen() {
       <TextInput
         style={[styles.input, { color: darkMode ? "#fff" : "#000", borderColor: darkMode ? "#fff" : "#000" }]}
         placeholder="Contraseña"
-        placeholderTextColor={darkMode ? "#ccc" : "#888"}
+        placeholderTextColor={darkMode ? "#fff" : "#888"}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -90,13 +94,13 @@ const styles = StyleSheet.create({
   },
   button: {
     width: "80%",
-    backgroundColor: "#007bff",
+    backgroundColor: "#fff", // Botón en color blanco
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
     marginBottom: 12,
   },
-  buttonText: { color: "#fff", fontSize: 16 },
+  buttonText: { color: "#000", fontSize: 16 },
   errorText: {
     color: "#ff4d4d",
     fontSize: 14,

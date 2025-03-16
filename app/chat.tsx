@@ -12,16 +12,17 @@ import {
   Platform,
   Easing,
   Alert,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
-// Importa tus contextos (ajusta la ruta según corresponda)
+// Contextos
 import { useTheme } from "../contexts/themeContext";
 import { useMenu, Conversation, Message } from "../contexts/menuContext";
 
-// Importa Firebase (Firestore y Auth)
+// Firebase (Firestore y Auth)
 import { auth, db } from "../utils/firebaseconfig";
 import {
   collection,
@@ -53,14 +54,17 @@ export default function ChatScreen() {
     if (conversationId === "") {
       const newId = createConversation();
       const currentUser = auth.currentUser;
+      if (!currentUser) {
+        Alert.alert("Error", "Usuario no autenticado");
+        return;
+      }
       (async () => {
         try {
-          // Crea el documento de conversación usando el mismo ID generado y asigna el userId
           await setDoc(doc(db, "conversations", newId), {
             title: "New Chat",
             createdAt: serverTimestamp(),
             history: [],
-            userId: currentUser?.uid,
+            userId: currentUser.uid,
           });
         } catch (error) {
           console.error("Error creando conversación en Firestore:", error);
@@ -136,7 +140,7 @@ export default function ChatScreen() {
     };
   }, [inputBottomAnim]);
 
-  // Función para formatear el texto, mostrando en negrita lo que esté entre ** **
+  // Función para formatear el texto (pone en negrita lo que esté entre ** **)
   const renderFormattedText = (text: string) => {
     const parts = text.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, index) => {
@@ -168,7 +172,7 @@ export default function ChatScreen() {
     }
   };
 
-  // Actualiza el campo "history" en el documento de la conversación (usa merge para crear si no existe)
+  // Actualiza el campo "history" en el documento de la conversación
   const updateConversationHistoryInFirestore = async (convId: string, history: Message[]) => {
     try {
       const convDoc = doc(db, "conversations", convId);
@@ -179,9 +183,9 @@ export default function ChatScreen() {
   };
 
   const sendMessage = async () => {
-    Haptics.selectionAsync();
+    await Haptics.selectionAsync();
     if (messageText.trim() && conversationId !== "") {
-      // Si el título aún es "New Chat", actualízalo con la primera palabra del mensaje
+      // Si el título es "New Chat", actualízalo con la primera palabra del mensaje
       if (conversation && conversation.title === "New Chat") {
         const firstWord = messageText.trim().split(" ")[0];
         updateConversationTitle(conversation.id, firstWord);
@@ -225,7 +229,7 @@ export default function ChatScreen() {
         );
 
         if (!response.ok) {
-          const errorData = await response.json();
+          await response.json();
           Alert.alert("Error de API", "No se pudo obtener respuesta del modelo Gemini.");
           return;
         }
@@ -253,6 +257,60 @@ export default function ChatScreen() {
     }
   };
 
+  // Función para regenerar una respuesta del bot
+  const handleRegenerate = async (botMsgId: string) => {
+    if (!conversationId) return;
+    // Filtra el historial quitando la respuesta del bot a regenerar
+    const filteredHistory = messages.filter((msg) => msg.id !== botMsgId);
+    // Actualiza el historial local y en Firestore
+    updateConversationHistory(conversationId, filteredHistory);
+    await updateConversationHistoryInFirestore(conversationId, filteredHistory);
+
+    const promptParts = filteredHistory.map((msg) => ({
+      text: msg.sender === "user" ? `User: ${msg.text}` : `Assistant: ${msg.text}`,
+    }));
+
+    setIsTyping(true);
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyCm6KBxmAH62LOkJVvzvvTU8UAfsAAK728`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: promptParts }],
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        await response.json();
+        Alert.alert("Error de API", "No se pudo obtener respuesta del modelo Gemini.");
+        return;
+      }
+
+      const data = await response.json();
+      const botResponseText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (botResponseText) {
+        const newBotMsg: Message = {
+          id: String(Date.now()),
+          text: botResponseText.trim(),
+          sender: "bot",
+        };
+        addMessage(conversationId, newBotMsg);
+        await saveMessageToFirestore(conversationId, newBotMsg);
+        const updatedHistory = [...filteredHistory, newBotMsg];
+        await updateConversationHistoryInFirestore(conversationId, updatedHistory);
+      } else {
+        Alert.alert("Respuesta Inválida", "La API de Gemini no respondió con un mensaje válido.");
+      }
+    } catch (error) {
+      Alert.alert("Error de Conexión", "No se pudo conectar con la API de Gemini.");
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: darkMode ? "#000" : "#fff" }]}>
       {conversation && (
@@ -262,41 +320,58 @@ export default function ChatScreen() {
           </Text>
         </View>
       )}
-      <ScrollView
-        style={styles.messagesContainer}
-        contentContainerStyle={styles.messagesContentContainer}
-        keyboardShouldPersistTaps="handled"
-      >
-        {messages.map((msg) => (
-          <View
-            key={msg.id}
-            style={[
-              styles.messageBubble,
-              msg.sender === "user"
-                ? { backgroundColor: darkMode ? "#fff" : "#000", alignSelf: "flex-end" }
-                : { backgroundColor: darkMode ? "#333" : "#f0f0f0", alignSelf: "flex-start" },
-            ]}
-          >
-            <Text
-              style={[
-                styles.messageText,
-                msg.sender === "user"
-                  ? { color: darkMode ? "#000" : "#fff" }
-                  : { color: darkMode ? "#fff" : "#000" },
-              ]}
-            >
-              {renderFormattedText(msg.text)}
-            </Text>
-          </View>
-        ))}
-        {isTyping && (
-          <View style={styles.typingIndicatorContainer}>
-            <Animated.View style={[styles.dot, { backgroundColor: darkMode ? "#fff" : "#000" }]} />
-            <Animated.View style={[styles.dot, { backgroundColor: darkMode ? "#fff" : "#000", marginHorizontal: 4 }]} />
-            <Animated.View style={[styles.dot, { backgroundColor: darkMode ? "#fff" : "#000" }]} />
-          </View>
-        )}
-      </ScrollView>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView
+          style={styles.messagesContainer}
+          contentContainerStyle={styles.messagesContentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          {messages.map((msg) => (
+            <View key={msg.id}>
+              <View
+                style={[
+                  styles.messageBubble,
+                  msg.sender === "user"
+                    ? { backgroundColor: darkMode ? "#fff" : "#000", alignSelf: "flex-end" }
+                    : { backgroundColor: darkMode ? "#333" : "#f0f0f0", alignSelf: "flex-start" },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.messageText,
+                    msg.sender === "user"
+                      ? { color: darkMode ? "#000" : "#fff" }
+                      : { color: darkMode ? "#fff" : "#000" },
+                  ]}
+                >
+                  {renderFormattedText(msg.text)}
+                </Text>
+              </View>
+              {/* Icono de recargar para regenerar la respuesta del bot */}
+              {msg.sender === "bot" && (
+                <TouchableOpacity
+                  style={styles.regenerateIconContainer}
+                  onPress={() => handleRegenerate(msg.id)}
+                >
+                  <Ionicons name="reload" size={20} color={darkMode ? "#fff" : "#000"} />
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+          {isTyping && (
+            <View style={styles.typingIndicatorContainer}>
+              <Animated.View style={[styles.dot, { backgroundColor: darkMode ? "#fff" : "#000" }]} />
+              <Animated.View
+                style={[
+                  styles.dot,
+                  { backgroundColor: darkMode ? "#fff" : "#000", marginHorizontal: 4 },
+                ]}
+              />
+              <Animated.View style={[styles.dot, { backgroundColor: darkMode ? "#fff" : "#000" }]} />
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
       <Animated.View
         style={[
           styles.inputContainer,
@@ -335,9 +410,22 @@ const styles = StyleSheet.create({
   },
   conversationTitle: { fontSize: 18, fontWeight: "600" },
   messagesContainer: { flex: 1 },
-  messagesContentContainer: { padding: 16, paddingBottom: 120 },
-  messageBubble: { padding: 12, borderRadius: 8, marginBottom: 8, maxWidth: "80%" },
+  messagesContentContainer: {
+    padding: 16,
+    paddingBottom: 160, 
+  },
+  messageBubble: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    maxWidth: "80%",
+  },
   messageText: { fontSize: 16 },
+  regenerateIconContainer: {
+    alignSelf: "flex-start",
+    marginLeft: 16,
+    marginBottom: 8,
+  },
   inputContainer: {
     position: "absolute",
     left: 16,

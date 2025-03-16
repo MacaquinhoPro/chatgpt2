@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "../utils/firebaseconfig";
 import { useTheme } from "../contexts/themeContext";
+import * as Haptics from "expo-haptics"; // Importa Haptics para la respuesta háptica
 
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -34,6 +35,9 @@ export default function RegisterScreen() {
   const [error, setError] = useState("");
 
   const handleRegister = async () => {
+    // Habilita la respuesta háptica al presionar el botón
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
     setError(""); // Limpiar error previo
     const trimmedName = name.trim();
     const trimmedEmail = email.trim();
@@ -49,7 +53,7 @@ export default function RegisterScreen() {
       const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
       // Actualiza el perfil del usuario con el nombre
       await updateProfile(userCredential.user, { displayName: trimmedName });
-      // Redirige a la pantalla de login con un mensaje (podrías agregar un Toast o similar si lo deseas)
+      // Redirige a la pantalla de login
       router.replace("/login");
     } catch (err: any) {
       console.error(err);
@@ -104,13 +108,13 @@ const styles = StyleSheet.create({
   },
   button: {
     width: "80%",
-    backgroundColor: "#007bff",
+    backgroundColor: "#fff", // Botón en color blanco
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
     marginBottom: 12,
   },
-  buttonText: { color: "#fff", fontSize: 16 },
+  buttonText: { color: "#000", fontSize: 16 }, 
   errorText: {
     color: "#ff4d4d",
     fontSize: 14,
