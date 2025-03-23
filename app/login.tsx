@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../utils/firebaseconfig";
 import { useTheme } from "../contexts/themeContext";
-import * as Haptics from "expo-haptics"; // Importa Haptics para la respuesta háptica
+import * as Haptics from "expo-haptics"; 
 
 // Función para transformar el error de Firebase en un mensaje amigable
 const getFriendlyError = (error: any): string => {

@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "../utils/firebaseconfig";
 import { useTheme } from "../contexts/themeContext";
-import * as Haptics from "expo-haptics"; // Importa Haptics para la respuesta háptica
+import * as Haptics from "expo-haptics"; 
 
 const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
