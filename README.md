@@ -11,7 +11,7 @@ Este proyecto es una aplicación móvil desarrollada con [Expo](https://expo.dev
 - [Uso de la Aplicación](#uso-de-la-aplicación)
 - [Contextos Principales](#contextos-principales)
 - [Contribuciones](#contribuciones)
-- [Licencia](#licencia)
+
 
 ## Requisitos
 
@@ -39,18 +39,6 @@ Este proyecto es una aplicación móvil desarrollada con [Expo](https://expo.dev
    yarn
    ```
 
-3. **Configura Firebase**:
-   - Crea un proyecto en [Firebase Console](https://console.firebase.google.com/).
-   - Añade una app web y obtén las credenciales de configuración (apiKey, authDomain, etc.).
-   - Asegúrate de que en `utils/firebaseconfig.ts` (o el archivo equivalente) hayas puesto tus credenciales de Firebase.
-
-4. **Instala CocoaPods (solo para iOS)**:
-   - Abre la carpeta `ios` y ejecuta:
-     ```bash
-     cd ios
-     pod install
-     ```
-   - Si tienes problemas de permisos, revisa tu configuración de usuario y ejecuta `sudo gem install cocoapods` o `brew install cocoapods`.
 
 ## Estructura del Proyecto
 
@@ -63,7 +51,8 @@ chatgpt2-1
 │  ├─ register.tsx
 │  ├─ menuContext.tsx
 │  ├─ themeContext.tsx
-│  ├─ _layout.tsx  
+│  ├─ _layout.tsx
+│  ├─ chat.tsx
 ├─ utils
 │  └─ firebaseconfig.ts
 ├─ ios
